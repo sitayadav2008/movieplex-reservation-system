@@ -1,0 +1,193 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Book Ticket{% endblock %}
+
+{% block content %}
+
+<style>
+    .seat-button {
+        width: 50px;
+        height: 50px;
+        margin-right: 2px;
+    }
+    .seat-row {
+        margin-bottom: 5px;
+    }
+    .seat-button.selected {
+        background-color: green;
+        color: white;
+    }
+</style>
+
+<div class="container mt-4">
+    <div class="row g-0">
+        <div class="col-md-6">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">{{ movie_name }}</h5>
+                    <img src="{{ movie_image }}" alt="{{ movie_name }}" class="movie-image img-fluid mb-3">
+                    <p class="card-text"><strong>Movie ID:</strong> {{ movie_id }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">Book Your Show</h5>
+                    <p>Select a date and time:</p>
+                    
+                    <!-- Date input with restrictions (current date to next 10 days) -->
+                    <input type="date" id="show-date" class="form-control mb-3">
+
+                    <div class="d-flex flex-column">
+                        <button class="btn btn-info mb-2" onclick="selectShowTime(this, '10:00 AM')">10:00 AM</button>
+                        <button class="btn btn-info mb-2" onclick="selectShowTime(this, '1:00 PM')">1:00 PM</button>
+                        <button class="btn btn-info mb-2" onclick="selectShowTime(this, '4:00 PM')">4:00 PM</button>
+                        <button class="btn btn-info mb-2" onclick="selectShowTime(this, '7:00 PM')">7:00 PM</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Seat Selection Section (hidden by default) -->
+    <div id="seats-section" class="mt-4" style="display: none;">
+        <h5>Select Your Seats</h5>
+        <div class="row">
+            <div class="col-md-6">
+                <h6>Left Section</h6>
+                <div class="d-flex flex-column">
+                    {% for row in "ABCDEFGH"|make_list %}
+                    <div class="d-flex seat-row">
+                        <span class="align-self-center me-2">{{ row }}</span>
+                        {% for seat in "123456789"|make_list %}
+                        <button class="btn btn-outline-success seat-button" data-seat="Left {{ row }}-{{ seat }}" onclick="selectSeat(this)">
+                            {{ seat }}
+                        </button>
+                        {% endfor %}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="col-md-6">
+                <h6>Right Section</h6>
+                <div class="d-flex flex-column">
+                    {% for row in "ABCDEFGH"|make_list %}
+                    <div class="d-flex seat-row">
+                        <span class="align-self-center me-2">{{ row }}</span>
+                        {% for seat in "123456789"|make_list %}
+                        <button class="btn btn-outline-success seat-button" data-seat="Right {{ row }}-{{ seat }}" onclick="selectSeat(this)">
+                            {{ seat }}
+                        </button>
+                        {% endfor %}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <div id="selected-seats" class="mt-4">
+            <h5>Selected Seats:</h5>
+            <p id="selected-seats-list">None</p>
+        </div>
+
+        <!-- Finalize Booking Button -->
+        <button class="btn btn-primary mt-3" onclick="finalizeBooking()">Finalize Booking</button>
+    </div>
+</div>
+
+<script>
+    let selectedSeats = [];
+    let isDateSelected = false;
+    let isTimeSelected = false;
+
+    // Set date input to restrict past dates and allow only 10 days in advance
+    window.onload = function () {
+        const today = new Date();
+        const yyyy = today.getFullYear();
+        const mm = String(today.getMonth() + 1).padStart(2, '0');
+        const dd = String(today.getDate()).padStart(2, '0');
+        
+        const minDate = `${yyyy}-${mm}-${dd}`;
+        const maxDate = new Date(today.setDate(today.getDate() + 10)).toISOString().split('T')[0];
+
+        document.getElementById('show-date').setAttribute('min', minDate);
+        document.getElementById('show-date').setAttribute('max', maxDate);
+    }
+
+    // Show seat selection section only when both date and time are selected
+    function showSeats() {
+        if (isDateSelected && isTimeSelected) {
+            document.getElementById('seats-section').style.display = 'block';
+        }
+    }
+
+    // Handle seat selection
+    function selectSeat(button) {
+        const seat = button.getAttribute('data-seat');
+
+        if (button.classList.contains('selected')) {
+            button.classList.remove('selected');
+            selectedSeats = selectedSeats.filter(s => s !== seat);
+        } else {
+            button.classList.add('selected');
+            selectedSeats.push(seat);
+        }
+
+        updateSelectedSeatsDisplay();
+    }
+
+    function updateSelectedSeatsDisplay() {
+        const selectedSeatsList = document.getElementById('selected-seats-list');
+        if (selectedSeats.length > 0) {
+            selectedSeatsList.textContent = selectedSeats.join(', ');
+        } else {
+            selectedSeatsList.textContent = 'None';
+        }
+    }
+
+    // Handle show time selection
+    function selectShowTime(button, time) {
+        const buttons = document.querySelectorAll('.btn-info');
+        buttons.forEach(btn => btn.classList.remove('active-show-time'));
+        button.classList.add('active-show-time');
+        
+        isTimeSelected = true;
+        showSeats();
+    }
+
+    // Handle date selection
+    document.getElementById('show-date').addEventListener('change', function () {
+        if (this.value) {
+            isDateSelected = true;
+            showSeats();
+        }
+    });
+
+    // Finalize the booking
+    function finalizeBooking() {
+        const showTime = document.querySelector('button.active-show-time');
+        const showDate = document.getElementById('show-date').value;
+
+        if (selectedSeats.length === 0) {
+            alert('Please select at least one seat.');
+            return;
+        }
+        if (!showTime) {
+            alert('Please select a show time.');
+            return;
+        }
+        if (!showDate) {
+            alert('Please select a show date.');
+            return;
+        }
+
+        const time = showTime.innerText;
+        const date = showDate;
+
+        window.location.href = "{% url 'payment' %}?time=" + encodeURIComponent(time) + "&seats=" + encodeURIComponent(selectedSeats.join(',')) + "&date=" + encodeURIComponent(date);
+    }
+</script>
+
+{% endblock %}
